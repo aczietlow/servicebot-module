@@ -1,0 +1,4 @@
+name = Servicebot integration
+core = 7.x
+package = Servicebot.io
+description = Adds servicebot integration

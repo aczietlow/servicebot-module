@@ -1,0 +1,325 @@
+<?php
+/**
+ * @file
+ * Adds Service bot integration
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function servicebot_menu() {
+  $items = [];
+
+  $items['admin/config/services/servicebot'] = [
+    'title' => 'Servicebot Settings',
+    'description' => 'Configure your Servicebot Settings',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => ['servicebot_settings_form'],
+    'access callback' => 'user_access',
+    'access arguments' => ['servicebot billing'],
+    'file' => 'servicebot.admin.inc',
+  ];
+
+  $items['billing'] = [
+    'title' => 'Billing',
+    'access callback' => 'user_access',
+    'access arguments' => ['servicebot billing'],
+    'page callback' => 'servicebot_billing',
+    'type' => MENU_CALLBACK,
+  ];
+
+  return $items;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function servicebot_theme() {
+  return [
+    'servicebot_subscription_embed' => [
+      'variables' => [
+        'user_mail' => NULL,
+        'user_hmac' => NULL,
+        'servicebot_id' => NULL,
+        'servicebot_service' => NULL,
+        'servicebot_tier' => NULL,
+        'servicebot_interval' => NULL,
+        'servicebot_options' => [],
+      ],
+    ],
+  ];
+}
+
+/**
+ * Implements hook_permission().
+ */
+function servicebot_permission() {
+  $return = [];
+
+  $return['servicebot_administer'] = [
+    'title' => t('Servicebot Administrator'),
+    'description' => t('Administer Servicebot settings'),
+    'warning' => t('Users with this permission have access to the servicebot account keys.'),
+  ];
+
+  $return['servicebot_billing'] = [
+    'title' => t('Servicebot Billing'),
+    'description' => t('Grants access to the servicebot billing page.'),
+  ];
+
+  return $return;
+}
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function servicebot_ctools_plugin_directory($owner, $plugin_type) {
+  if ($owner == 'ctools' && $plugin_type == 'content_types') {
+    return 'plugins/' . $plugin_type;
+  }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function theme_servicebot_subscription_embed($variables) {
+
+  drupal_add_js(drupal_get_path('module', 'servicebot') . '/servicebot.js');
+  drupal_add_js([
+    'servicebot' => [
+      'user_mail' => $variables['user_mail'],
+      'user_hmac' => $variables['user_hmac'],
+      'servicebot_id' => $variables['servicebot_id'],
+      'servicebot_service' => $variables['servicebot_service'],
+      'servicebot_tier' => $variables['servicebot_tier'],
+      'servicebot_interval' => $variables['servicebot_interval'],
+      'servicebot_options' => $variables['servicebot_options'],
+    ],
+  ], 'setting');
+
+  return '<div id="servicebot-subscription-portal"></div>';
+}
+
+/**
+ *  Temp page callback.
+ */
+function servicebot_billing() {
+
+  $secret_key = variable_get('servicebot_secret_key', '');
+  $servicebot_id = variable_get('servicebot_id', '');
+  $servicebot_service = variable_get('servicebot_service', '');
+  $servicebot_tier = variable_get('servicebot_tier', '');
+  $servicebot_interval = variable_get('servicebot_interval', '');
+
+  global $user;
+
+  $email_hash = hash_hmac(
+    'sha256',
+    $user->mail,
+    $secret_key
+  );
+
+  $options = _servicebot_get_options_names();
+  $servicebot_options = [];
+
+  foreach ($options as $option) {
+    $global_option_name = "servicebot_global_$option";
+    $option_value = variable_get($global_option_name, '');
+    if (!empty($option_value)) {
+      $servicebot_options[$option] = $option_value;
+    }
+  }
+
+  return theme('servicebot_subscription_embed', [
+    'user_mail' => $user->mail,
+    'user_hmac' => $email_hash,
+    'servicebot_id' => $servicebot_id,
+    'servicebot_service' => $servicebot_service,
+    'servicebot_tier' => $servicebot_tier,
+    'servicebot_interval' => $servicebot_interval,
+    'servicebot_options' => $servicebot_options,
+  ]);
+}
+
+/**
+ * Implements hook_block_info().
+ */
+function servicebot_block_info() {
+  $blocks = [];
+
+  $blocks['servicebot'] = [
+    'info' => t('Servicebot: Embedded forms'),
+    'cache' => DRUPAL_NO_CACHE,
+  ];
+
+  return $blocks;
+}
+
+/**
+ * Implements hook_block_view().
+ */
+function servicebot_block_view($delta = '') {
+  $block = [];
+
+  switch ($delta) {
+    case 'servicebot':
+      if (user_is_logged_in()) {
+
+        $secret_key = variable_get('servicebot_secret_key', '');
+        $servicebot_id = variable_get('servicebot_id', '');
+
+        global $user;
+
+        $email_hash = hash_hmac(
+          'sha256',
+          $user->mail,
+          $secret_key
+        );
+      }
+
+      $block['content'] = [
+        '#markup' => theme('servicebot_subscription_embed', [
+          'user_mail' => $user->mail,
+          'user_hmac' => $email_hash,
+          'servicebot_id' => $servicebot_id,
+        ])
+      ];
+
+    break;
+  }
+
+  return $block;
+}
+
+
+/**
+ * Implements hook_block_configure().
+ */
+function servicebot_block_configure($delta = '') {
+  $form = [];
+
+  switch ($delta) {
+    case 'servicebot':
+      $form = drupal_get_form('servicebot_options_form');
+      break;
+
+  }
+
+  return $form;
+}
+
+/**
+ * Form builder for Servicebot configurable options.
+ */
+function servicebot_options_form($form, &$form_stote) {
+
+  $form['options'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Servicebot Options'),
+    '#description' => t('Follow instructions on servicebot options !here.',
+      ['!here' => l('here', 'https://docs.servicebot.io/subscription-portal/advance-configuration/configure-portal#options')]),
+  ];
+
+  $form['options']['hideCancelDropdown'] = [
+    '#type' => 'checkbox',
+    '#title' => 'hideCancelDropdown',
+    '#description' => t('Set to true to disable users from being able to cancel their subscription on their own.'),
+  ];
+
+  $form['options']['hideCoupon'] = [
+    '#type' => 'checkbox',
+    '#title' => 'hideCoupon',
+    '#description' => t('Set to true to hide the coupon section from users.'),
+  ];
+
+  $form['options']['hideChangePlan'] = [
+    '#type' => 'checkbox',
+    '#title' => 'hideChangePlan',
+    '#description' => t('Set to true to disable users from being able to change their plan (upgrade/downgrade).'),
+  ];
+
+  $form['options']['hideUpdateCard'] = [
+    '#type' => 'checkbox',
+    '#title' => 'hideUpdateCard',
+    '#description' => t('Set to true to disable users from being able to update their Credit Card information.'),
+  ];
+
+  $form['options']['forceCard'] = [
+    '#type' => 'checkbox',
+    '#title' => 'forceCard',
+    '#description' => t('Set to true to force users to enter in their Credit Card information during signup process. By default the embed will not ask for payment information if they are on a free tier or there is a free trial.'),
+  ];
+
+  $form['options']['cancel_now'] = [
+    '#type' => 'checkbox',
+    '#title' => 'cancel_now',
+    '#description' => t('Set to true to force cancellations to go through immediately. By default Servicebot will cancel a subscription at the end of the billing cycle.'),
+  ];
+
+  // @TODO Implement this option.
+  // disableTiers
+
+  $form['options']['messageOnCancel'] = [
+    '#type' => 'text',
+    '#title' => 'messageOnCancel',
+    '#description' => t('A message to override the default cancellation message. When a user selects to cancel their plan, this is the message that appears in the pop-up'),
+  ];
+
+  $form['options']['metadata'] = [
+    '#type' => 'textarea',
+    '#title' => 'metadata',
+    '#description' => t("An object of key-value pairs. They will be added to the metadata of the Customer and Subscription in Stripe when they are created using the portal.
+Eg: {key1: 'value1', key2:'value2'}"),
+  ];
+
+  $form['options']['object'] = [
+    '#type' => 'textarea',
+    '#title' => 'object',
+    '#description' => t("Use to set the quantity of a subscription during creation. Can get an integer or an object of key-value pairs. The quantity will apply to products with the unti_label defined. If an integer is passed, it will apply the quantity to all products on the tier, if an object is passed with the unit_labels as keys, it will assign that quantity to the respective unit_label.
+Eg: 5
+Eg: {product_unit_label1 : 10, unit_label2: 20}"),
+  ];
+
+  $form['options']['card.hideName'] = [
+    '#type' => 'checkbox',
+    '#title' => 'card.hideName',
+    '#description' => t('Set to true to hide the name field on the Credit Card form.'),
+  ];
+
+  $form['options']['card.hideAddress'] = [
+    '#type' => 'checkbox',
+    '#title' => 'card.hideAddress',
+    '#description' => t('Set to true to hide the address field on the Credit Card form.'),
+  ];
+
+  $form['options']['card.hideCountryPostal'] = [
+    '#type' => 'checkbox',
+    '#title' => 'card.hideCountryPostal',
+    '#description' => t('Set to true to hide the Country and Postal Code fields on the Credit Card form'),
+  ];
+
+  return $form;
+}
+
+/**
+ * Returns a list of all configurable servicebot api options.
+ *
+ * @return array
+ *   An array of the servicebot option names.
+ */
+function _servicebot_get_options_names() {
+  return [
+    'hideCancelDropdown',
+    'hideCoupon',
+    'hideChangePlan',
+    'hideUpdateCard',
+    'forceCard',
+    'cancel_now',
+    'messageOnCancel',
+    'metadata',
+    'object',
+    'card.hideName',
+    'card.hideAddress',
+    'card.hideCountryPostal'
+  ];
+}
