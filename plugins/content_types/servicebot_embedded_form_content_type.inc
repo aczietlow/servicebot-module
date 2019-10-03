@@ -17,7 +17,7 @@ $plugin = [
   'edit form' => 'servicebot_embedded_form_content_type_edit_form',
   'defaults' => [
     'hideCancelDropdown' => FALSE,
-    'hideCoupon' => FALSE,
+    'disableCoupon' => FALSE,
     'hideChangePlan' => FALSE,
     'hideUpdateCard' => FALSE,
     'forceCard' => FALSE,
@@ -51,11 +51,11 @@ function servicebot_embedded_form_content_type_edit_form($form, &$form_state) {
     '#default_value' => !empty($conf['hideCancelDropdown']) ? $conf['hideCancelDropdown'] : FALSE,
   ];
 
-  $form['options']['hideCoupon'] = [
+  $form['options']['disableCoupon'] = [
     '#type' => 'checkbox',
-    '#title' => 'hideCoupon',
-    '#description' => t('Set to true to hide the coupon section from users.'),
-    '#default_value' => !empty($conf['hideCoupon']) ? $conf['hideCoupon'] : FALSE,
+    '#title' => 'disableCoupon',
+    '#description' => t('Set to true to hide the coupon section from users on signup and on the subscription management portal.'),
+    '#default_value' => !empty($conf['disableCoupon']) ? $conf['disableCoupon'] : FALSE,
   ];
 
   $form['options']['hideChangePlan'] = [

@@ -76,11 +76,11 @@ function servicebot_settings_form($form, &$form_state) {
     '#default_value' => variable_get('servicebot_global_hideCancelDropdown', FALSE),
   ];
 
-  $form['options']['servicebot_global_hideCoupon'] = [
+  $form['options']['servicebot_global_disableCoupon'] = [
     '#type' => 'checkbox',
-    '#title' => 'hideCoupon',
-    '#description' => t('Set to true to hide the coupon section from users.'),
-    '#default_value' => variable_get('servicebot_global_hideCoupon', FALSE),
+    '#title' => 'disableCoupon',
+    '#description' => t('Set to true to hide the coupon section from users on signup and on the subscription management portal.'),
+    '#default_value' => variable_get('servicebot_global_disableCoupon', FALSE),
   ];
 
   $form['options']['servicebot_global_hideChangePlan'] = [
