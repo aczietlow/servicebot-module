@@ -20,13 +20,16 @@ function servicebot_menu() {
     'file' => 'servicebot.admin.inc',
   ];
 
-  $items['billing'] = [
-    'title' => 'Billing',
-    'access callback' => 'user_access',
-    'access arguments' => ['servicebot_billing'],
-    'page callback' => 'servicebot_billing',
-    'type' => MENU_CALLBACK,
-  ];
+  // Only display the default billing page if the user configuration allows.
+  if (variable_get('servicebot_default_billing_page', TRUE)) {
+    $items['billing'] = [
+      'title' => 'Billing',
+      'access callback' => 'user_access',
+      'access arguments' => ['servicebot_billing'],
+      'page callback' => 'servicebot_billing',
+      'type' => MENU_CALLBACK,
+    ];
+  }
 
   return $items;
 }

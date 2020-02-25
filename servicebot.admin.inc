@@ -9,6 +9,13 @@
  * Servicebot admin settings form.
  */
 function servicebot_settings_form($form, &$form_state) {
+  $form['servicebot_default_billing_page'] = [
+    '#type' => 'checkbox',
+    '#title' => 'Default Billing page.',
+    '#description' => t('Disable the default /billing page callback. Changing this value will require a cache clear.'),
+    '#default_value' => variable_get('servicebot_default_billing_page', TRUE),
+  ];
+
   $form['credentials'] = [
     '#type' => 'fieldset',
     '#title' => t('Servicebot credentials'),
