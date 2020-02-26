@@ -219,10 +219,7 @@ function servicebot_webhooks() {
   }
 
   drupal_add_http_header('Status', 200);
-  return [
-    'test' => 'test',
-    'ryan' => 'hi',
-  ];
+  return 'Success';
 }
 
 /**
