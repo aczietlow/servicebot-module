@@ -4,6 +4,16 @@
  * Adds Service bot integration
  */
 
+// Stripe event types as defined in documentation, https://stripe.com/docs/api/events/types
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_CREATED', 'customer.subscription.created');
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_DELETED', 'customer.subscription.deleted');
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_UPDATED', 'customer.subscription.updated');
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SOURCE_CREATED', 'customer.source.created');
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SOURCE_EXPIRING', 'customer.source.expiring');
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SOURCE_UPDATED', 'customer.source.updated');
+define('SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_TRIAL_WILL_END', 'customer.subscription.trial_will_end');
+define('SERVICEBOT_STRIPE_EVENT_INVOICE_PAYMENT_FAILED', 'invoice.payment_failed');
+
 /**
  * Implements hook_menu().
  */
@@ -30,6 +40,14 @@ function servicebot_menu() {
       'type' => MENU_CALLBACK,
     ];
   }
+
+  $items[variable_get('servicebot_webhook_uri', 'servicebot/webhooks')] = [
+    'title' => 'Servicebot webhook',
+    'access callback' => TRUE,
+    'page callback' => 'servicebot_webhooks',
+    'delivery callback' => 'drupal_json_output',
+    'type' => MENU_CALLBACK,
+  ];
 
   return $items;
 }
@@ -86,7 +104,6 @@ function servicebot_ctools_plugin_directory($owner, $plugin_type) {
  * Implements hook_theme().
  */
 function theme_servicebot_subscription_embed($variables) {
-
   drupal_add_js(drupal_get_path('module', 'servicebot') . '/servicebot.js');
   drupal_add_js([
     'servicebot' => [
@@ -104,10 +121,9 @@ function theme_servicebot_subscription_embed($variables) {
 }
 
 /**
- *  Temp page callback.
+ *  Default billing page callback.
  */
 function servicebot_billing() {
-
   $secret_key = variable_get('servicebot_secret_key', '');
   $servicebot_id = variable_get('servicebot_id', '');
   $servicebot_service = variable_get('servicebot_service', '');
@@ -142,6 +158,71 @@ function servicebot_billing() {
     'servicebot_interval' => $servicebot_interval,
     'servicebot_options' => $servicebot_options,
   ]);
+}
+
+/**
+ * Page callback for servicebot webhooks.
+ */
+function servicebot_webhooks() {
+  $payload = @file_get_contents('php://input');
+  $event = NULL;
+
+  try {
+    // @TODO make an enum of all available event types.
+    $payload = json_decode($payload, TRUE);
+    $event = $payload['type'];
+  }
+  catch (\UnexpectedValueException $e) {
+    watchdog('Servicebot', 'Unexpected stripe event type.', WATCHDOG_ERROR);
+    drupal_add_http_header('Status', 400);
+    drupal_exit();
+  }
+
+  $hook = '';
+
+  // Allow modules to act upon servicebot events.
+  switch ($event) {
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_CREATED:
+      $hook = 'servicebot_customer_subscription_created';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_UPDATED:
+      $hook = 'servicebot_customer_subscription_updated';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_DELETED:
+      $hook = 'servicebot_customer_subscription_deleted';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SOURCE_CREATED:
+      $hook = 'servicebot_customer_source_created';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SOURCE_UPDATED:
+      $hook = 'servicebot_customer_source_updated';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SOURCE_EXPIRING:
+      $hook = 'servicebot_customer_source_expiring';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_CUSTOMER_SUBSCRIPTION_TRIAL_WILL_END:
+      $hook = 'servicebot_customer_subscription_trial_will_end';
+      break;
+    case SERVICEBOT_STRIPE_EVENT_INVOICE_PAYMENT_FAILED:
+      $hook = 'servicebot_invoice_payment_failed';
+      break;
+    default:
+      drupal_add_http_header('Status', 400);
+      drupal_exit();
+      break;
+  }
+
+  // Implement hook that matches stripe event.
+  foreach (module_implements($hook) as $module) {
+    $function = $module . '_' . $hook;
+    $function($payload['data']['object']);
+  }
+
+  drupal_add_http_header('Status', 200);
+  return [
+    'test' => 'test',
+    'ryan' => 'hi',
+  ];
 }
 
 /**
@@ -215,7 +296,6 @@ function servicebot_block_configure($delta = '') {
  * Form builder for Servicebot configurable options.
  */
 function servicebot_options_form($form, &$form_stote) {
-
   $form['options'] = [
     '#type' => 'fieldset',
     '#title' => t('Servicebot Options'),

@@ -9,11 +9,46 @@
  * Servicebot admin settings form.
  */
 function servicebot_settings_form($form, &$form_state) {
-  $form['servicebot_default_billing_page'] = [
+
+  $form['global'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Servicebot Global Settings'),
+  ];
+
+  $form['global']['servicebot_default_billing_page'] = [
     '#type' => 'checkbox',
     '#title' => 'Default Billing page.',
     '#description' => t('Disable the default /billing page callback. Changing this value will require a cache clear.'),
     '#default_value' => variable_get('servicebot_default_billing_page', TRUE),
+  ];
+
+  $form['global']['servicebot_default_billing_page_uri'] = [
+    '#type' => 'textfield',
+    '#title' => t('Default billing page URI'),
+    '#default_value' => variable_get('servicebot_default_billing_page_uri', 'billing'),
+    '#description' => t('Customize the default billing portal url.') . '<br />' . t('Based on your current settings, your billing portal should be accessible at <b>@url</b>',
+        [
+          '@url' => url(variable_get('servicebot_default_billing_page_uri', 'billing'),
+            ['absolute' => TRUE]),
+        ]),
+  ];
+
+  $form['global']['servicebot_webhook_status'] = [
+    '#type' => 'checkbox',
+    '#title' => 'Enable webhooks',
+    '#description' => t('Enable webhook url endpoint. Changing this value will require a cache clear.'),
+    '#default_value' => variable_get('servicebot_webhook_status', FALSE),
+  ];
+
+  $form['global']['servicebot_webhook_uri'] = [
+    '#type' => 'textfield',
+    '#title' => t('Webhooks URI'),
+    '#default_value' => variable_get('servicebot_webhook_uri', 'servicebot/webhooks'),
+    '#description' => t('Customize the webhooks URL.') . '<br />' . t('Based on your current settings, you should set <b>@url</b> as your Webhooks URL at Stripe.',
+        [
+          '@url' => url(variable_get('servicebot_webhook_uri', 'stripe/webhooks'),
+            ['absolute' => TRUE]),
+        ]),
   ];
 
   $form['credentials'] = [
@@ -21,14 +56,6 @@ function servicebot_settings_form($form, &$form_state) {
     '#title' => t('Servicebot credentials'),
     '#description' => t('Follow the instructions to set up your Servicebot credentials !here.',
       ['!here' => l('here', 'https://docs.servicebot.io/subscription-portal/get-started')]),
-  ];
-
-  $form['credentials']['servicebot_secret_key'] = [
-    '#type' => 'textfield',
-    '#title' => t('Secret Key'),
-    '#default_value' => variable_get('servicebot_secret_key', ''),
-    '#required' => TRUE,
-    '#description' => t('Servicebot unique ID associated with your account. It can be found on the Dashboard->Subscription Portal. Note: This ID is different for Live & Test mode.'),
   ];
 
   $form['credentials']['servicebot_id'] = [
@@ -39,11 +66,19 @@ function servicebot_settings_form($form, &$form_state) {
     '#description' => t('Servicebot ID'),
   ];
 
+  $form['credentials']['servicebot_secret_key'] = [
+    '#type' => 'textfield',
+    '#title' => t('Secret Key'),
+    '#default_value' => variable_get('servicebot_secret_key', ''),
+    '#required' => TRUE,
+    '#description' => t('Servicebot unique ID associated with your account. It can be found on the Dashboard->Subscription Portal. Note: This ID is different for Live & Test mode.'),
+  ];
+
   $form['settings'] = [
     '#type' => 'fieldset',
-    '#title' => t('Servicebot Settings'),
+    '#title' => t('Servicebot API Settings'),
     '#description' => t('Follow instructions on servicebot settings !here.',
-      ['!here' => l('here', 'https://docs.servicebot.io/subscription-portal/advance-configuration/configure-portal')]),
+      ['!here' => l('here', 'https://docs.servicebot.io/subscription-portal/get-started')]),
   ];
 
   $form['settings']['servicebot_service'] = [
@@ -71,7 +106,7 @@ function servicebot_settings_form($form, &$form_state) {
     '#type' => 'fieldset',
     '#title' => t('Servicebot Options'),
     '#description' => t('Follow instructions on servicebot options !here.',
-      ['!here' => l('here', 'https://docs.servicebot.io/subscription-portal/advance-configuration/configure-portal#options')]),
+      ['!here' => l('here', 'https://docs.servicebot.io/subscription-portal/subscription-management-portal/subscription-management-portal-configuration')]),
     '#collapsible' => TRUE,
     '#collapsed' => TRUE,
   ];
